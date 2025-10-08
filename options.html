@@ -73,7 +73,17 @@
     <label><input type="radio" name="submitKey" value="enter"> Enter</label>
   </div>
 
-  <h2>2. Icon Position Anchor</h2>
+  <h2>2. Hotkey Shortcut</h2>
+  <div class="options-group">
+    <p>
+      You can send the selected text using a keyboard shortcut (default: <strong>Alt+D</strong>).
+    </p>
+    <p>
+      To customize this shortcut, go to <a href="chrome://extensions/shortcuts" target="_blank">chrome://extensions/shortcuts</a>.
+    </p>
+  </div>
+
+  <h2>3. Icon Position Anchor</h2>
   <p>Choose the corner of the text selection to use as a base position.</p>
   <div class="options-group">
     <label><input type="radio" name="anchor" value="top-right"> Top-Right</label>
@@ -82,7 +92,7 @@
     <label><input type="radio" name="anchor" value="bottom-left"> Bottom-Left</label>
   </div>
 
-  <h2>3. Position Offset</h2>
+  <h2>4. Position Offset</h2>
   <p>Use the sliders to adjust the icon's position relative to the anchor point.</p>
   <div class="slider-group">
     <label>Horizontal: <input type="range" id="offsetX" min="-50" max="50" value="0"> <span id="offsetXValue">0 px</span></label>

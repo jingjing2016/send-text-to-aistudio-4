@@ -39,5 +39,13 @@
         "<all_urls>"
       ]
     }
-  ]
+  ],
+  "commands": {
+    "send-selected-text": {
+      "suggested_key": {
+        "default": "Alt+D"
+      },
+      "description": "Send the selected text to the target tab"
+    }
+  }
 }

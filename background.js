@@ -12,48 +12,74 @@ const DEFAULTS = {
     }
 };
 
-// Listen for messages from the content script
+// --- Refactored function to send text ---
+function sendTextToTarget(text, sendInForeground) {
+    chrome.storage.sync.get(DEFAULTS, (data) => {
+        const { settings } = data;
+        const targetTabIndex = settings.targetTabIndex - 1;
+
+        chrome.tabs.query({ index: targetTabIndex }, (tabs) => {
+            if (tabs.length > 0) {
+                const targetTab = tabs[0];
+                chrome.scripting.executeScript({
+                    target: { tabId: targetTab.id },
+                    function: fillInputAndSubmit,
+                    args: [text, settings.submitKey]
+                }, () => {
+                    if (sendInForeground) {
+                        chrome.tabs.update(targetTab.id, { active: true });
+                        chrome.windows.update(targetTab.windowId, { focused: true });
+                    }
+                });
+            } else {
+                console.warn(`Send Text: No tab found at index ${settings.targetTabIndex}.`);
+                chrome.notifications.create({
+                    type: 'basic',
+                    iconUrl: 'icon.png',
+                    title: 'Send Text Failed',
+                    message: `Could not find a tab at position ${settings.targetTabIndex}.`
+                });
+            }
+        });
+    });
+}
+
+// --- Listener for messages from content script (icon click) ---
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "sendText" && request.text) {
-        // First, get the user's settings from storage
-        chrome.storage.sync.get(DEFAULTS, (data) => {
-            const { settings } = data;
-            // The user provides a 1-based index, but the API expects 0-based.
-            const targetTabIndex = settings.targetTabIndex - 1;
+        sendTextToTarget(request.text, request.sendInForeground);
+    }
+    return true; // Indicates asynchronous response
+});
 
-            // 1. Find the target tab by its index
-            chrome.tabs.query({ index: targetTabIndex }, (tabs) => {
-                if (tabs.length > 0) {
-                    const targetTab = tabs[0];
-                    // 2. Execute script in the found tab
-                    chrome.scripting.executeScript({
-                        target: { tabId: targetTab.id },
-                        function: fillInputAndSubmit,
-                        args: [request.text, settings.submitKey] // Pass text and submit key
-                    }, () => {
-                        // 3. After script execution, check if we need to bring the tab to the foreground
-                        if (request.sendInForeground) {
-                            chrome.tabs.update(targetTab.id, { active: true });
-                            chrome.windows.update(targetTab.windowId, { focused: true });
+// --- Listener for the keyboard shortcut ---
+chrome.commands.onCommand.addListener((command) => {
+    if (command === "send-selected-text") {
+        // 1. Get the currently active tab
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs.length > 0) {
+                const currentTab = tabs[0];
+                // 2. Execute a script to get the selected text
+                chrome.scripting.executeScript({
+                    target: { tabId: currentTab.id },
+                    function: () => window.getSelection().toString()
+                }, (injectionResults) => {
+                    if (chrome.runtime.lastError) {
+                        console.error(chrome.runtime.lastError.message);
+                        return;
+                    }
+                    // The result is an array, get the first element
+                    if (injectionResults && injectionResults[0] && injectionResults[0].result) {
+                        const selectedText = injectionResults[0].result.trim();
+                        if (selectedText) {
+                            // 3. Send the text to the target
+                            sendTextToTarget(selectedText, false); // `false` = send in the background
                         }
-                    });
-                } else {
-                    // 3. If no tab is found, notify the user.
-                    // This is better than creating a new tab, which might not be what the user wants.
-                    console.warn(`Send Text: No tab found at index ${settings.targetTabIndex}.`);
-                    // Optionally, create a user-facing notification
-                    chrome.notifications.create({
-                        type: 'basic',
-                        iconUrl: 'icon.png',
-                        title: 'Send Text Failed',
-                        message: `Could not find a tab at position ${settings.targetTabIndex}.`
-                    });
-                }
-            });
+                    }
+                });
+            }
         });
     }
-    // Return true to indicate you wish to send a response asynchronously
-    return true;
 });
 
 /**
