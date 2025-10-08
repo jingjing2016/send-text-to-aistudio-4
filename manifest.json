@@ -46,6 +46,12 @@
         "default": "Alt+D"
       },
       "description": "Send the selected text to the target tab"
+    },
+    "send-pointed-text": {
+      "suggested_key": {
+        "default": "Ctrl+9"
+      },
+      "description": "Send the text under the cursor to the target tab"
     }
   }
 }

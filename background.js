@@ -54,32 +54,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // --- Listener for the keyboard shortcut ---
 chrome.commands.onCommand.addListener((command) => {
-    if (command === "send-selected-text") {
-        // 1. Get the currently active tab
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs.length > 0) {
-                const currentTab = tabs[0];
-                // 2. Execute a script to get the selected text
-                chrome.scripting.executeScript({
-                    target: { tabId: currentTab.id },
-                    function: () => window.getSelection().toString()
-                }, (injectionResults) => {
-                    if (chrome.runtime.lastError) {
-                        console.error(chrome.runtime.lastError.message);
-                        return;
+    // Get the currently active tab first, as both commands need it
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs.length === 0) {
+            return; // No active tab found
+        }
+        const currentTab = tabs[0];
+
+        if (command === "send-selected-text") {
+            // Execute a script to get the selected text
+            chrome.scripting.executeScript({
+                target: { tabId: currentTab.id },
+                function: () => window.getSelection().toString()
+            }, (injectionResults) => {
+                if (chrome.runtime.lastError) {
+                    console.error(chrome.runtime.lastError.message);
+                    return;
+                }
+                if (injectionResults && injectionResults[0] && injectionResults[0].result) {
+                    const selectedText = injectionResults[0].result.trim();
+                    if (selectedText) {
+                        sendTextToTarget(selectedText, false); // `false` = send in the background
                     }
-                    // The result is an array, get the first element
-                    if (injectionResults && injectionResults[0] && injectionResults[0].result) {
-                        const selectedText = injectionResults[0].result.trim();
-                        if (selectedText) {
-                            // 3. Send the text to the target
-                            sendTextToTarget(selectedText, false); // `false` = send in the background
-                        }
+                }
+            });
+        } else if (command === "send-pointed-text") {
+            // Send a message to the content script to get the text under the cursor
+            chrome.tabs.sendMessage(currentTab.id, { action: "getPointedText" }, (response) => {
+                if (chrome.runtime.lastError) {
+                    // This can happen if the content script is not yet injected on a page.
+                    // We can log it, but in most cases, the user will just try again.
+                    console.warn("Could not communicate with content script:", chrome.runtime.lastError.message);
+                    return;
+                }
+                if (response && response.text) {
+                    const pointedText = response.text.trim();
+                    if (pointedText) {
+                        sendTextToTarget(pointedText, false); // `false` = send in the background
                     }
-                });
-            }
-        });
-    }
+                }
+            });
+        }
+    });
 });
 
 /**

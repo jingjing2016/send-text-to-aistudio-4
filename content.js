@@ -145,3 +145,35 @@ function hideIcon() {
 }
 window.addEventListener('resize', hideIcon);
 window.addEventListener('scroll', hideIcon);
+
+// --- 4. Hotkey for Pointed Text ---
+
+// Keep track of the last mouse position
+let lastMouseX = 0;
+let lastMouseY = 0;
+
+document.addEventListener('mousemove', (e) => {
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+}, true); // Use capture to get the event early
+
+// Listen for requests from the background script
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    // Check for the new action from the hotkey
+    if (request.action === 'getPointedText') {
+        // Find the element at the last known mouse position
+        const element = document.elementFromPoint(lastMouseX, lastMouseY);
+        if (element) {
+            // Send the text content of the element back
+            sendResponse({ text: element.innerText || '' });
+        } else {
+            // Respond with empty text if no element is found
+            sendResponse({ text: '' });
+        }
+        // Return true to indicate that we will respond asynchronously
+        return true;
+    }
+
+    // Keep the existing message handling for icon clicks if any
+    // (Currently, this file only sends messages, but this is good practice)
+});
