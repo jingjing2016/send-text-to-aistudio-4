@@ -145,3 +145,39 @@ function hideIcon() {
 }
 window.addEventListener('resize', hideIcon);
 window.addEventListener('scroll', hideIcon);
+
+// --- 4. Hotkey for Pointed Text ---
+
+// Keep track of the last mouse position
+let lastMouseX = 0;
+let lastMouseY = 0;
+
+document.addEventListener('mousemove', (e) => {
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+}, true); // Use capture to get the event early
+
+// Listen for requests from the background script
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    // Check for the action from the hotkey
+    if (request.action === 'getPointedText') {
+        const element = document.elementFromPoint(lastMouseX, lastMouseY);
+
+        if (element) {
+            // If the element is an image, send its source URL
+            if (element.tagName === 'IMG') {
+                sendResponse({ type: 'image', data: element.src });
+            } else {
+                // Otherwise, send its text content
+                sendResponse({ type: 'text', data: element.innerText || '' });
+            }
+        } else {
+            // Respond with an empty type if no element is found
+            sendResponse({ type: 'empty' });
+        }
+        // Return true to indicate that we will respond asynchronously
+        return true;
+    }
+
+    // This is a good practice for other potential messages
+});
